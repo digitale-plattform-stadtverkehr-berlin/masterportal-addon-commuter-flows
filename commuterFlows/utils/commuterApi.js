@@ -1,7 +1,14 @@
 import {WFS} from "ol/format.js";
-import getProxyUrl from "../../../src/utils/getProxyUrl";
 import axios from "axios";
 import hash from "object-hash";
+
+/**
+ *
+ * @returns {Boolean} dasf
+ */
+function getProxyUrl () {
+    return false;
+}
 
 /**
  * CommuterApi is the api for the Tool "CommuterFlows"
@@ -56,10 +63,10 @@ export class CommuterApi {
                     propertyName: "euvm:einpendler",
                     literal: "TRUE"
                 },
-                {
-                    propertyName: "euvm:auspendler",
-                    literal: "TRUE"
-                }]]
+                    {
+                        propertyName: "euvm:auspendler",
+                        literal: "TRUE"
+                    }]]
         }, xmlResponse => {
             const parser = new DOMParser(),
                 doc = parser.parseFromString(xmlResponse, "application/xml"),
@@ -97,14 +104,14 @@ export class CommuterApi {
                 propertyName: "euvm:stadt",
                 literal: state
             },
-            [{
-                propertyName: "euvm:einpendler",
-                literal: "TRUE"
-            },
-            {
-                propertyName: "euvm:auspendler",
-                literal: "TRUE"
-            }]]
+                [{
+                    propertyName: "euvm:einpendler",
+                    literal: "TRUE"
+                },
+                    {
+                        propertyName: "euvm:auspendler",
+                        literal: "TRUE"
+                    }]]
         }, xmlResponse => {
             const parser = new DOMParser(),
                 doc = parser.parseFromString(xmlResponse, "application/xml"),
@@ -142,14 +149,14 @@ export class CommuterApi {
                 propertyName: "euvm:ortsteil",
                 literal: district
             },
-            [{
-                propertyName: "euvm:einpendler",
-                literal: true
-            },
-            {
-                propertyName: "euvm:auspendler",
-                literal: true
-            }]
+                [{
+                    propertyName: "euvm:einpendler",
+                    literal: true
+                },
+                    {
+                        propertyName: "euvm:auspendler",
+                        literal: true
+                    }]
             ]
         }, xmlResponse => {
             const parser = new DOMParser(),
@@ -429,7 +436,6 @@ export class CommuterApi {
      */
     parseResponseGetFeature (xmlResponse, gmlApp, gmlItem, blacklist = []) {
         if (!(xmlResponse instanceof Document) && xmlResponse.constructor.name !== "XMLDocument") {
-            console.log("Not a XMLDocument");
             return [];
         }
 

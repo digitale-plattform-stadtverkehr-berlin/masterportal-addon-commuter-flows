@@ -1,17 +1,19 @@
 <script>
-import ToolTemplate from "../../../src/modules/tools/ToolTemplate.vue";
 import {mapGetters, mapMutations} from "vuex";
 import getters from "../store/gettersCommuterFlows";
 import mutations from "../store/mutationsCommuterFlows";
 import {CommuterApi} from "../utils/commuterApi";
 import {CommuterOL} from "../utils/commuterOL";
-import {convertColor} from "../../../src/utils/convertColor.js";
-import thousandsSeparator from "../../../src/utils/thousandsSeparator.js";
+import {convertColor} from "../../../src/shared/js/utils/convertColor";
+import thousandsSeparator from "../../../src/shared/js/utils/thousandsSeparator";
+import SwitchInput from "../../../src/shared/modules/checkboxes/components/SwitchInput.vue";
+import FlatButton from "../../../src/shared/modules/buttons/components/FlatButton.vue";
 
 export default {
     name: "CommuterFlows",
     components: {
-        ToolTemplate
+        SwitchInput,
+        FlatButton
     },
     data () {
         return {
@@ -39,7 +41,7 @@ export default {
         };
     },
     computed: {
-        ...mapGetters("Tools/CommuterFlows", Object.keys(getters)),
+        ...mapGetters("Modules/CommuterFlows", Object.keys(getters)),
 
         /**
          * checkes if the animation is running using olApi
@@ -50,50 +52,6 @@ export default {
         }
     },
     watch: {
-        /**
-         * watches the status of the tool
-         * starts initial processes if the tool has been activated for the first time
-         * @param {Boolean} value true if the tool has been activated
-         * @returns {void}
-         */
-        active (value) {
-            if (value) {
-                this.setActive(value);
-
-                if (this.wfsApi === null) {
-                    // the wfsApi can't be loaded on created or mounted, beacause the serviceURL might not be there yet
-                    this.wfsApi = new CommuterApi({
-                        serviceUrl: this.serviceURL,
-                        blacklistedDistricts: this.blacklistedDistricts,
-                        typename: this.typename
-                    });
-                    this.wfsApi.getListStates(result => {
-                        this.listStates = result;
-                    }, this.onApiError);
-                }
-                if (this.olApi === null) {
-                    // the CommuterOL creates layers on construction
-                    // only construct when necessary - e.g. on first activation of the tool
-                    this.olApi = new CommuterOL({
-                        font: this.olFont,
-                        fontFill: this.olFontFill,
-                        fontShadow: this.olFontShadow,
-                        beam: this.olBeam,
-                        bubblePixelMax: this.olBubblePixelMax,
-                        bubblePixelMin: this.olBubblePixelMin,
-                        bubbleBorder: this.olBubbleBorder,
-                        bubbleColors: this.olBubbleColors,
-                        bubbleColorShift: this.olBubbleColorShift,
-                        zoomOptions: this.olZoomOptions,
-                        animationPaces: this.olAnimationPaces
-                    });
-
-                    // resets the tool for a clean start
-                    this.resetAll();
-                }
-                this.setFocusToFirstControl();
-            }
-        },
         /**
          * watches changes of lastDataset
          * @param {Object} newLastDataset the new lastDataset to react to
@@ -198,18 +156,53 @@ export default {
             }
         }
     },
-    created () {
-        this.$on("close", this.close);
-    },
     /**
      * Put initialize here if mounting occurs after config parsing
      * @returns {void}
      */
     mounted () {
+        this.sideMenuWidth = document.getElementById("mp-menu-secondaryMenu").style.width;
+        //document.getElementById("mp-menu-secondaryMenu").style.width = "500px";
         this.applyTranslationKey(this.name);
+        if (this.wfsApi === null) {
+            // the wfsApi can't be loaded on created or mounted, beacause the serviceURL might not be there yet
+            this.wfsApi = new CommuterApi({
+                serviceUrl: this.serviceURL,
+                blacklistedDistricts: this.blacklistedDistricts,
+                typename: this.typename
+            });
+            this.wfsApi.getListStates(result => {
+                this.listStates = result;
+            }, this.onApiError);
+        }
+        if (this.olApi === null) {
+            // the CommuterOL creates layers on construction
+            // only construct when necessary - e.g. on first activation of the tool
+            this.olApi = new CommuterOL({
+                font: this.olFont,
+                fontFill: this.olFontFill,
+                fontShadow: this.olFontShadow,
+                beam: this.olBeam,
+                bubblePixelMax: this.olBubblePixelMax,
+                bubblePixelMin: this.olBubblePixelMin,
+                bubbleBorder: this.olBubbleBorder,
+                bubbleColors: this.olBubbleColors,
+                bubbleColorShift: this.olBubbleColorShift,
+                zoomOptions: this.olZoomOptions,
+                animationPaces: this.olAnimationPaces
+            });
+
+            // resets the tool for a clean start
+            this.resetAll();
+        }
+        this.setFocusToFirstControl();
+    },
+    unmounted () {
+        this.resetAll();
+        document.getElementById("mp-menu-secondaryMenu").style.width = this.sideMenuWidth;
     },
     methods: {
-        ...mapMutations("Tools/CommuterFlows", Object.keys(mutations)),
+        ...mapMutations("Modules/CommuterFlows", Object.keys(mutations)),
         thousandsSeparator,
         /**
          * Sets the focus to the first control
@@ -221,19 +214,6 @@ export default {
                     this.$refs["select-district"].focus();
                 }
             });
-        },
-        /**
-         * Closes this tool window by setting active to false
-         * @returns {void}
-         */
-        close () {
-            this.setActive(false);
-
-            const model = Radio.request("ModelList", "getModelByAttributes", {id: this.$store.state.Tools.CommuterFlows.id});
-
-            if (model) {
-                model.set("isActive", false);
-            }
         },
         /**
          * translates the given key, checkes if the key exists and throws a console warning if not
@@ -302,11 +282,11 @@ export default {
             }
             if (!Array.isArray(coords) || this.lastMarker === coords) {
                 this.lastMarker = null;
-                this.$store.dispatch("MapMarker/removePointMarker");
+                this.$store.dispatch("Maps/removePointMarker");
             }
             else {
                 this.lastMarker = coords;
-                this.$store.dispatch("MapMarker/placingPointMarker", coords);
+                this.$store.dispatch("Maps/placingPointMarker", coords);
             }
         },
         /**
@@ -478,6 +458,7 @@ export default {
             // to avoid a mixup within vue (leading to a bug) the following resets may be put into $nextTick
             this.$nextTick(() => {
                 this.currentDistrict = "";
+                this.currentState = "";
 
                 this.lastDataset = null;
                 if (typeof this.onstart === "object") {
@@ -518,447 +499,333 @@ export default {
 </script>
 
 <template lang="html">
-    <ToolTemplate
-        :title="$t(name)"
-        :icon="icon"
-        :active="active"
-        :render-to-window="renderToWindow"
-        :resizable-window="resizableWindow"
-        :deactivate-gfi="deactivateGFI"
+    <div
+        id="CommuterFlows"
+        class="commuter-flows-container"
     >
-        <template #toolBody>
-            <div
-                id="CommuterFlows"
-                class="commuter-flows-container"
-            >
-                <div class="d-grid section">
-                    <div class="col">
-                        <div
-                            v-if="active"
-                            class="form-group"
+        <form
+            id="printToolNew"
+            class="form-horizontal"
+            @submit.prevent="print"
+        >
+            <div class="form-floating mb-3">
+                <select
+                    id="CommuterFlows-select-state"
+                    ref="select-state"
+                    v-model="currentState"
+                    class="form-select"
+                >
+                    <option
+                        selected
+                        disabled
+                        value=""
+                    >
+                        {{ translate("additional:modules.CommuterFlows.selectState") }}
+                    </option>
+                    <option
+                        v-for="(state, i) in listStates"
+                        :key="i"
+                        :value="state"
+                        :SELECTED="state === currentState ? true : null"
+                    >
+                        {{ state }}
+                    </option>
+                </select>
+                <label for="CommuterFlows-select-state">
+                    {{ translate("additional:modules.CommuterFlows.labelState") }}
+                </label>
+            </div>
+        </form>
+        <div v-if="currentState !== ''">
+            <div class="form-floating mb-3">
+                <select
+                    id="CommuterFlows-select-district"
+                    ref="select-district"
+                    v-model="currentDistrict"
+                    class="form-select"
+                >
+                    <option
+                        selected
+                        disabled
+                        value=""
+                    >
+                        {{ translate("additional:modules.CommuterFlows.select") }}
+                    </option>
+                    <option
+                        v-for="(district, i) in listDistricts"
+                        :key="i"
+                        :value="district"
+                        :SELECTED="district === currentDistrict ? true : null"
+                    >
+                        {{ district }}
+                    </option>
+                </select>
+                <label for="CommuterFlows-select-district">
+                    {{ translate("additional:modules.CommuterFlows.labelDistrict") }}
+                </label>
+            </div>
+        </div>
+        <div v-if="lastDataset !== null">
+            <div class="form-floating mb-3">
+                <select
+                    id="CommuterFlows-select-city"
+                    v-model="currentCity"
+                    class="form-select"
+                    :disabled="listCities.length === 0"
+                >
+                    <option
+                        selected
+                        value=""
+                    >
+                        {{ (listCities.length > 0)?translate("additional:modules.CommuterFlows.selectCity") : translate("additional:modules.CommuterFlows.noCity") }}
+                    </option>
+                    <option
+                        v-for="(city, i) in listCities"
+                        :key="i"
+                        :value="city"
+                        :SELECTED="city === currentCity ? true : null"
+                    >
+                        {{ city }}
+                    </option>
+                </select>
+                <label for="CommuterFlows-select-city">
+                    {{ translate("additional:modules.CommuterFlows.labelCity") }}
+                </label>
+            </div>
+            <div class="form-check form-switch mb-3 d-flex align-items-center">
+                <SwitchInput
+                    :id="'idCaptionsChecked'"
+                    :aria="$t('additional:modules.CommuterFlows.checkName')"
+                    :interaction="($event) => captionsChecked = $event.target.checked"
+                    :label="$t('additional:modules.CommuterFlows.checkName')"
+                    :checked="captionsChecked"
+                />
+            </div>
+            <div class="form-check form-switch mb-3 d-flex align-items-center">
+                <SwitchInput
+                    :id="'idNumbersChecked'"
+                    :aria="$t('additional:modules.CommuterFlows.checkNumber')"
+                    :interaction="($event) => numbersChecked = $event.target.checked"
+                    :label="$t('additional:modules.CommuterFlows.checkNumber')"
+                    :checked="numbersChecked"
+                />
+            </div>
+            <div class="form-check form-switch mb-3 d-flex align-items-center">
+                <SwitchInput
+                    :id="'idBeamsChecked'"
+                    :aria="$t('additional:modules.CommuterFlows.checkBeams')"
+                    :interaction="($event) => beamsChecked = $event.target.checked"
+                    :label="$t('additional:modules.CommuterFlows.checkBeams')"
+                    :checked="beamsChecked"
+                />
+            </div>
+            <div class="form-check form-switch mb-3 d-flex justify-content-between align-items-center">
+                <SwitchInput
+                    :id="'idAnimationChecked'"
+                    :aria="$t('additional:modules.CommuterFlows.checkAnimation')"
+                    :interaction="($event) => animationChecked = $event.target.checked"
+                    :label="$t('additional:modules.CommuterFlows.checkAnimation')"
+                    :checked="animationChecked"
+                />
+                <FlatButton
+                    :aria-label="!isAnimationRunning ? $t('additional:modules.CommuterFlows.buttonStart') : $t('additional:modules.CommuterFlows.buttonStop')"
+                    :text="!isAnimationRunning ? $t('additional:modules.CommuterFlows.buttonStart') : $t('additional:modules.CommuterFlows.buttonStop')"
+                    :interaction="() => !isAnimationRunning ? playAnimation() : stopAnimation()"
+                    :icon="!isAnimationRunning ? 'bi-play-fill' : 'bi-stop-fill'"
+                    :disabled="!animationChecked"
+                />
+            </div>
+            <div class="d-grid section">
+                <div class="col" />Die Pendleranalyse basiert auf einen von Senozon generierten Datensatz für einen durchschnittlichen Arbeitstag Berlin. Dieser wurde durch die Kombination einer Modellierung mit dem agentenbasierten Verkehrsmodell MATSim der TU Berlin und Mobilfunkdaten des Providers Telefónica für das Jahr 2019 erstellt. Es wird neben dem Hauptverkehrsmittel, dem Start- und Endpunkt auch der Grund des Trips modelliert. Die Analyse ist für den Weg zur Arbeit (Kategorie „work“) durchgeführt worden. Anzumerken ist, dass Quell- und Zielorte identisch sein können, da der Arbeitsplatz in demselben Gebiet sein könnte.
+            </div>
+            <div class="d-grid d-md-flex section">
+                <div class="col-6 col-sm-6 tooltipWrapper">
+                    <div
+                        class="form-check form-check-inline"
+                        role="presentation"
+                        @mouseover="tooltipOutActive = true"
+                        @focusin="tooltipOutActive = true"
+                        @mouseout="tooltipOutActive = false"
+                        @focusout="tooltipOutActive = false"
+                    >
+                        <input
+                            id="idOutChecked"
+                            v-model="currentDirection"
+                            class="form-check-input"
+                            type="radio"
+                            name="outInCommuter"
+                            value="out"
                         >
-                            <label for="CommuterFlows-select-state">
-                                {{ translate("additional:modules.tools.CommuterFlows.labelState") }}
-                            </label>
-                            <select
-                                id="CommuterFlows-select-state"
-                                ref="select-state"
-                                v-model="currentState"
-                                class="form-select"
-                            >
-                                <option
-                                    selected
-                                    disabled
-                                    value=""
-                                >
-                                    {{ translate("additional:modules.tools.CommuterFlows.selectState") }}
-                                </option>
-                                <option
-                                    v-for="(district, i) in listStates"
-                                    :key="i"
-                                    :value="district"
-                                    :SELECTED="district === currentDistrict"
-                                >
-                                    {{ district }}
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div v-if="currentState !== ''">
-                    <div class="d-grid section">
-                        <div class="col">
-                            <div
-                                v-if="active"
-                                class="form-group"
-                            >
-                                <label for="CommuterFlows-select-district">
-                                    {{ translate("additional:modules.tools.CommuterFlows.labelDistrict") }}
-                                </label>
-                                <select
-                                    id="CommuterFlows-select-district"
-                                    ref="select-district"
-                                    v-model="currentDistrict"
-                                    class="form-select"
-                                >
-                                    <option
-                                        selected
-                                        disabled
-                                        value=""
-                                    >
-                                        {{ translate("additional:modules.tools.CommuterFlows.selectDistrict") }}
-                                    </option>
-                                    <option
-                                        v-for="(district, i) in listDistricts"
-                                        :key="i"
-                                        :value="district"
-                                        :SELECTED="district === currentDistrict"
-                                    >
-                                        {{ district }}
-                                    </option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div v-if="lastDataset !== null">
-                    <div class="d-grid section">
-                        <div class="col">
-                            <div class="form-group">
-                                <label for="CommuterFlows-select-city">
-                                    {{ translate("additional:modules.tools.CommuterFlows.labelCity") }}
-                                </label>
-                                <select
-                                    id="CommuterFlows-select-city"
-                                    v-model="currentCity"
-                                    class="form-select"
-                                    :disabled="listCities.length === 0"
-                                >
-                                    <option
-                                        selected
-                                        value=""
-                                    >
-                                        {{ (listCities.length > 0)?translate("additional:modules.tools.CommuterFlows.selectCity") : translate("additional:modules.tools.CommuterFlows.noCity") }}
-                                    </option>
-                                    <option
-                                        v-for="(city, i) in listCities"
-                                        :key="i"
-                                        :value="city"
-                                        :SELECTED="city === currentCity"
-                                    >
-                                        {{ city }}
-                                    </option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-grid section">
-                        <div class="col" />
-                    </div>
-                    <div class="d-grid section">
-                        <div class="d-grid">
-                            <div class="form-check">
-                                <input
-                                    id="idCaptionsChecked"
-                                    v-model="captionsChecked"
-                                    class="form-check-input"
-                                    type="checkbox"
-                                >
-                                <label
-                                    class="col-form-label"
-                                    for="idCaptionsChecked"
-                                >
-                                    {{ translate("additional:modules.tools.CommuterFlows.checkName") }}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="d-grid">
-                            <div class="form-check">
-                                <input
-                                    id="idNumbersChecked"
-                                    v-model="numbersChecked"
-                                    class="form-check-input"
-                                    type="checkbox"
-                                >
-                                <label
-                                    class="col-form-label"
-                                    for="idNumbersChecked"
-                                >
-                                    {{ translate("additional:modules.tools.CommuterFlows.checkNumber") }}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="d-grid">
-                            <div class="form-check">
-                                <input
-                                    id="idBeamsChecked"
-                                    v-model="beamsChecked"
-                                    class="form-check-input"
-                                    type="checkbox"
-                                >
-                                <label
-                                    class="col-form-label"
-                                    for="idBeamsChecked"
-                                >
-                                    {{ translate("additional:modules.tools.CommuterFlows.checkBeams") }}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="d-grid d-md-flex section">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input
-                                        id="idAnimationChecked"
-                                        v-model="animationChecked"
-                                        class="form-check-input"
-                                        type="checkbox"
-                                    >
-                                    <label
-                                        class="col-form-label"
-                                        for="idAnimationChecked"
-                                    >
-                                        {{ translate("additional:modules.tools.CommuterFlows.checkAnimation") }}
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-4 ms-auto">
-                                <div
-                                    v-if="!isAnimationRunning"
-                                    class="form-group float-end "
-                                >
-                                    <button
-                                        type="button"
-                                        class="btn btn-secondary btn-sm animationButton"
-                                        :disabled="!animationChecked"
-                                        @click="playAnimation"
-                                    >
-                                        <span /><i class="bi bi-play-fill" />
-                                        {{ translate("additional:modules.tools.CommuterFlows.buttonStart") }}
-                                    </button>
-                                </div>
-                                <div
-                                    v-else
-                                    class="form-group float-end"
-                                >
-                                    <button
-                                        type="button"
-                                        class="btn btn-secondary btn-sm animationButton"
-                                        @click="stopAnimation"
-                                    >
-                                        <span /><i class="bi bi-stop-fill" />
-                                        {{ translate("additional:modules.tools.CommuterFlows.buttonStop") }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-grid section">
-                        <div class="col" />Die Pendleranalyse basiert auf einen von Senozon generierten Datensatz für einen durchschnittlichen Arbeitstag Berlin. Dieser wurde durch die Kombination einer Modellierung mit dem agentenbasierten Verkehrsmodell MATSim der TU Berlin und Mobilfunkdaten des Providers Telefónica für das Jahr 2019 erstellt. Es wird neben dem Hauptverkehrsmittel, dem Start- und Endpunkt auch der Grund des Trips modelliert.
-                    </div>
-                    <div class="d-grid d-md-flex section">
-                        <div class="col-6 col-sm-6 tooltipWrapper">
-                            <div
-                                class="form-check form-check-inline"
-                                role="presentation"
-                                @mouseover="tooltipOutActive = true"
-                                @focusin="tooltipOutActive = true"
-                                @mouseout="tooltipOutActive = false"
-                                @focusout="tooltipOutActive = false"
-                            >
-                                <input
-                                    id="idOutChecked"
-                                    v-model="currentDirection"
-                                    class="form-check-input"
-                                    type="radio"
-                                    name="outInCommuter"
-                                    value="out"
-                                >
-                                <label
-                                    class="col-form-label"
-                                    for="idOutChecked"
-                                >
-                                    {{ translate("additional:modules.tools.CommuterFlows.selectOut") }}
-                                </label>
-                            </div>
-                            <div
-                                v-show="tooltipOutActive"
-                                class="tooltip"
-                            >
-                                {{ translate("additional:modules.tools.CommuterFlows.tooltipOut") }}
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-6 tooltipWrapper">
-                            <div
-                                class="form-check form-check-inline"
-                                role="presentation"
-                                @mouseover="tooltipInActive = true"
-                                @focusin="tooltipInActive = true"
-                                @mouseout="tooltipInActive = false"
-                                @focusout="tooltipInActive = false"
-                            >
-                                <input
-                                    id="idInChecked"
-                                    v-model="currentDirection"
-                                    class="form-check-input"
-                                    type="radio"
-                                    name="outInCommuter"
-                                    value="in"
-                                >
-                                <label
-                                    class="col-form-label"
-                                    for="idInChecked"
-                                >
-                                    {{ translate("additional:modules.tools.CommuterFlows.selectIn") }}
-                                </label>
-                            </div>
-                            <div
-                                v-show="tooltipInActive"
-                                class="tooltip tooltipRight"
-                            >
-                                {{ translate("additional:modules.tools.CommuterFlows.tooltipIn") }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-grid">
-                        <div class="col">
-                            <hr>
-                        </div>
-                    </div>
-                    <div class="d-grid section">
-                        <div
-                            v-if="Array.isArray(lastDataset.featureList) && lastDataset.featureList.length"
-                            class="col-sm-12 featureList"
+                        <label
+                            class="col-form-label"
+                            for="idOutChecked"
                         >
-                            <table>
-                                <thead
-                                    v-if="lastDataset.featureList.length > 0"
-                                >
-                                    <tr>
-                                        <th />
-                                        <th />
-                                        <th class="featureValue">
-                                            Gesamt
-                                        </th>
-                                        <th class="featureValue">
-                                            KFZ
-                                        </th>
-                                        <th class="featureValue">
-                                            Rad
-                                        </th>
-                                        <th class="featureValue">
-                                            Fuß
-                                        </th>
-                                        <th class="featureValue">
-                                            ÖPNV
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr
-                                        v-for="(feature, idx) in lastDataset.featureList"
-                                        :key="`feature-${idx}`"
-                                        @click="toggleMarker(feature.get('coordinate'))"
-                                    >
-                                        <td
-                                            class="featureColor"
-                                        >
-                                            <div :style="getStyleByIdx(idx)" />
-                                        </td>
-                                        <td class="featureCaption">
-                                            {{ feature.get("caption") }}
-                                        </td>
-                                        <td class="featureValue">
-                                            {{ thousandsSeparator(feature.get("value")) }}
-                                        </td>
-                                        <td class="featureValue">
-                                            {{ Math.round((parseFloat(feature.get("car")) + parseFloat(feature.get("ride")))*100)/100 }}%
-                                        </td>
-                                        <td class="featureValue">
-                                            {{ feature.get("bike") }}%
-                                        </td>
-                                        <td class="featureValue">
-                                            {{ feature.get("walk") }}%
-                                        </td>
-                                        <td class="featureValue">
-                                            {{ feature.get("pt") }}%
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div
-                            v-else
-                            class="col-sm-12 noDataset"
-                        >
-                            {{ translate("additional:modules.tools.CommuterFlows.noDataset") }}
-                        </div>
-                    </div>
-                    <div class="d-grid">
-                        <div class="col">
-                            <hr>
-                        </div>
-                    </div>
-                    <div class="d-grid gap-2 d-md-block section buttons">
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            :disabled="lastDataset.len <= listChunk"
-                            @click="loadLess"
-                        >
-                            {{ translate("additional:modules.tools.CommuterFlows.buttonLess", {listChunk}) }}
-                            <span /><i class="bi bi-arrow-up" />
-                        </button>
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            :disabled="lastDataset.len >= lastDataset.totalLength"
-                            @click="loadMore"
-                        >
-                            {{ translate("additional:modules.tools.CommuterFlows.buttonMore", {listChunk}) }}
-                            <span /><i class="bi bi-arrow-down" />
-                        </button>
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            :disabled="lastDataset.len >= lastDataset.totalLength"
-                            @click="loadAll"
-                        >
-                            {{ translate("additional:modules.tools.CommuterFlows.buttonAll") }}
-                        </button>
+                            {{ translate("additional:modules.CommuterFlows.selectOut") }}
+                        </label>
                     </div>
                     <div
-                        v-if="metaVerPath"
-                        class="d-grid section"
+                        v-show="tooltipOutActive"
+                        class="tooltip"
                     >
-                        <div class="col-sm-12">
-                            <a
-                                :href="metaVerPath"
-                                target="_blank"
-                                class="float-end"
-                            >
-                                {{ translate("additional:modules.tools.CommuterFlows.linkMoreInfo") }}
-                            </a>
-                        </div>
+                        {{ translate("additional:modules.CommuterFlows.tooltipOut") }}
                     </div>
-                    <div class="d-grid mx-auto section">
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            @click="resetAll"
+                </div>
+                <div class="col-6 col-sm-6 tooltipWrapper">
+                    <div
+                        class="form-check form-check-inline"
+                        role="presentation"
+                        @mouseover="tooltipInActive = true"
+                        @focusin="tooltipInActive = true"
+                        @mouseout="tooltipInActive = false"
+                        @focusout="tooltipInActive = false"
+                    >
+                        <input
+                            id="idInChecked"
+                            v-model="currentDirection"
+                            class="form-check-input"
+                            type="radio"
+                            name="outInCommuter"
+                            value="in"
                         >
-                            <span /><i class="bi bi-trash" />
-                            {{ translate("additional:modules.tools.CommuterFlows.buttonReset") }}
-                        </button>
+                        <label
+                            class="col-form-label"
+                            for="idInChecked"
+                        >
+                            {{ translate("additional:modules.CommuterFlows.selectIn") }}
+                        </label>
+                    </div>
+                    <div
+                        v-show="tooltipInActive"
+                        class="tooltip tooltipRight"
+                    >
+                        {{ translate("additional:modules.CommuterFlows.tooltipIn") }}
                     </div>
                 </div>
             </div>
-        </template>
-    </ToolTemplate>
+            <hr>
+            <div class="d-grid section">
+                <div
+                    v-if="Array.isArray(lastDataset.featureList) && lastDataset.featureList.length"
+                    class="col-sm-12 featureList"
+                >
+                    <table>
+                        <thead
+                            v-if="lastDataset.featureList.length > 0"
+                        >
+                        <tr>
+                            <th />
+                            <th />
+                            <th class="featureValue">
+                                Gesamt
+                            </th>
+                            <th class="featureValue">
+                                KFZ
+                            </th>
+                            <th class="featureValue">
+                                Rad
+                            </th>
+                            <th class="featureValue">
+                                Fuß
+                            </th>
+                            <th class="featureValue">
+                                ÖPNV
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(feature, idx) in lastDataset.featureList"
+                                :key="`feature-${idx}`"
+                                @click="toggleMarker(feature.get('coordinate'))"
+                            >
+                                <td
+                                    class="featureColor"
+                                >
+                                    <div :style="getStyleByIdx(idx)" />
+                                </td>
+                                <td class="featureCaption">
+                                    {{ feature.get("caption") }}
+                                </td>
+                                <td class="featureValue">
+                                    {{ thousandsSeparator(feature.get("value")) }}
+                                </td>
+                                <td class="featureValue">
+                                    {{ Math.round((parseFloat(feature.get("car")) + parseFloat(feature.get("ride")))*100)/100 }}%
+                                </td>
+                                <td class="featureValue">
+                                    {{ feature.get("bike") }}%
+                                </td>
+                                <td class="featureValue">
+                                    {{ feature.get("walk") }}%
+                                </td>
+                                <td class="featureValue">
+                                    {{ feature.get("pt") }}%
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div
+                    v-else
+                    class="col-sm-12 noDataset"
+                >
+                    {{ translate("additional:modules.CommuterFlows.noDataset") }}
+                </div>
+            </div>
+            <div class="mb-3 d-flex justify-content-between align-items-center">
+                <FlatButton
+                    :aria-label="$t('additional:modules.CommuterFlows.buttonLess', {listChunk})"
+                    :text="$t('additional:modules.CommuterFlows.buttonLess', {listChunk})"
+                    :interaction="() => loadLess()"
+                    :icon="'bi-arrow-up'"
+                    :disabled="lastDataset.len <= listChunk"
+                />
+                <FlatButton
+                    :aria-label="$t('additional:modules.CommuterFlows.buttonMore', {listChunk})"
+                    :text="$t('additional:modules.CommuterFlows.buttonMore', {listChunk})"
+                    :interaction="() => loadMore()"
+                    :icon="'bi-arrow-down'"
+                    :disabled="lastDataset.len >= lastDataset.totalLength"
+                />
+                <FlatButton
+                    :aria-label="$t('additional:modules.CommuterFlows.buttonAll', {listChunk})"
+                    :text="$t('additional:modules.CommuterFlows.buttonAll', {listChunk})"
+                    :interaction="() => loadAll()"
+                    :disabled="lastDataset.len >= lastDataset.totalLength"
+                />
+            </div>
+            <div
+                v-if="metaVerPath"
+                class="d-grid section"
+            >
+                <div class="col-sm-12">
+                    <a
+                        :href="metaVerPath"
+                        target="_blank"
+                        class="float-end"
+                    >
+                        {{ translate("additional:modules.CommuterFlows.linkMoreInfo") }}
+                    </a>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <FlatButton
+                    :aria-label="$t('additional:modules.CommuterFlows.buttonReset')"
+                    :text="$t('additional:modules.CommuterFlows.buttonReset')"
+                    :interaction="() => resetAll()"
+                    :icon="'bi-trash'"
+                />
+            </div>
+        </div>
+    </div>
 </template>
 
 <style lang="scss" scoped>
-    @import "~/css/mixins.scss";
-    @import "~variables";
+    @import "/src/assets/css/mixins.scss";
+    @import "/src/assets/css/variables";
 
-    #CommuterFlows {
-        button {
-            &:focus {
-                @include primary_action_focus;
-            }
-            &:hover {
-                @include primary_action_hover;
-            }
-        }
-    }
-
-    .commuter-flows-container {
-        max-width: 500px;
-    }
-    .form-select {
-        font-size: 14px;
-    }
     .section {
-        .col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-6, .col-sm-12 {
+        .col-sm-6, .col-sm-12 {
             padding-left: 2px;
             padding-right: 2px;
         }
@@ -968,17 +835,9 @@ export default {
         }
         margin-bottom: 10px;
     }
-    hr {
-        margin-top: 10px;
-        margin-bottom: 10px;
-        border-top: solid $light_grey 1px;
-    }
     .col-form-label {
         padding-left: 4px;
         padding-top: 0px;
-    }
-    .animationButton {
-        width: 80px;
     }
     .noDataset {
         margin-top: 10px;
@@ -1004,7 +863,7 @@ export default {
                 margin: 0;
 
                 td {
-                    padding: 0 1px 0 1px;
+                    padding: 0 1px 0 8px;
                     margin: 0;
                     vertical-align: middle;
                 }
@@ -1035,9 +894,6 @@ export default {
                 }
             }
         }
-    }
-    .buttons {
-        text-align: center;
     }
     .tooltipWrapper {
         position: relative;
